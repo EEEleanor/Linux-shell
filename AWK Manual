@@ -1,0 +1,231 @@
+一、awk运行逻辑
+awk 的目的是用于文本处理，只要在输入数据中有模式匹配，就执行一系列由用户指定的命令，扫描文件中的每一行，查找与命令行中所给定的内容相匹配的模式，如发现匹配内容，则进行下一个编程步骤，如果找不到匹配内容，则继续处理下一行。
+
+二、 awk 命令行基本语法
+1. awk 命令样式
+awk [options] ‘{pattern + command}’ {filenames}
+options 常用如下：
+-F fs or --field-separator 
+fs 指定输入文件的分隔符， fs 是一个字符串或者是一个正则表达式，如-F : （表示输入文件是以冒号分隔的）。
+-v var=value or --asign var=value
+赋值一个用户定义变量。，将外部变量传递给awk
+-f scripfile or --file scriptfile
+从脚本文件中读取 awk 命令。 脚本文件的编写在本总结的“三”中介绍。
+pattern: 表示 awk 在数据中查找的内容，支持正则表达式（后面会提到正则表达式用法）。
+command : 是在找到匹配内容时所执行的一系列命令。
+{}花括号：不需要再程序中始终出现，可有可无，但它们用于根据特定的模式对一系列指令进行分组。
+‘’：单引号是一定要存在的。
+文件：被操作的文件可以是一个也可以是多个，针对多个文件的操作属于进阶过程。
+
+2.常用的内置函数：
+FS : input field seperator,输入文件的分隔符，默认为空白字符。
+OFS: output field seperator,输出文件的分隔符，默认为空白字符。
+RS : input record seperator,输入文件的换行符。
+ORS: output record seperator,输出文件的换行符。
+NF : number of field ,字段个数。
+举例子： awk '{print NF}' file1 :打印每行的字段数。
+              awk '{print $NF}' file1: 打印每行中的最后一个字段。这里加入了$(引用变量符号)，就表示每行最后一个字段了。
+NR : number of record,文件中的行数。
+举例子： awk '{print NR}' file1: 打印行号， 每一行的行号都会打印出来。
+              awk '{print NR}' file1 file2 : 会每把所有文档进行总的编号，而不是单独对文件进行编号。
+FNR : 对每个文件进行行数单独编号。第二个文件将从头编号行数。
+FILENAME : awk 命令所处理的文件的名称
+awk '{print FILENAME}' file1 : 显示当前文件名，但会每行显示一次。
+其他内置函数详解：https://www.cnblogs.com/chengmo/archive/2010/10/08/1845913.html
+
+3.多字段处理模式解释
+awk 善于每行处理分割成多个的文本，分隔符可以是任意字符。第 n 字段用$n 表示， $0 则表示整行。
+
+三、 awk 脚本编写
+（脚本也可以以命令行形式出现，脚本只是更为复杂化、多条件的命令行）
+1.awk 脚本基本结构
+awk 'BEGIN{ print "start" } pattern{ commands } END{ print "end" }' file
+一个 awk 脚本通常由： BEGIN 语句块、能够使用模式匹配的通用语句块、 END 语句块 3 部分组成，这三个部分是可选的。任意一个部分都可以不出现在脚本中，脚本通常是被单引号或双引号中。
+
+2.awk 脚本工作原理以及流程
+第一步： 执行 BEGIN{ commands }语句块中的语句。
+第二步： 从文件或标准输入(管道符后接 awk 情况)读取一行，然后执行pattern{ commands }语句块，它逐行扫描文件，从第一行到最后一行重复这个过程，直到文件全部被读取完毕。
+第三步： 当读至输入流末尾时，执行 END{ commands }语句块。
+
+BEGIN 语句块在 awk 开始从输入流中读取行之前被执行，这是一个可选的语句块，比如变量初始化、打印输出表格的表头等语句通常可以写在 BEGIN 语句块中。
+END 语句块在 awk 从输入流中读取完所有的行之后即被执行，比如打印所有行的分析结果这类信息汇总都是在 END 语句块中完成，它也是一个可选语句块。
+pattern 语句块中的通用命令是最重要的部分，它也是可选的。如果没有提供pattern 语句块，则默认执行{ print }，即打印每一个读取到的行， awk 读取的每一行都会执行该语句块。
+
+3.模式（pattern）和代码块（command）
+模式：可以是以下任意一个：
+/正则表达式/：使用通配符的扩展集。
+关系表达式：使用运算符进行操作，可以是字符串或数字的比较测试。
+模式匹配表达式：用运算符~（匹配）和~!（不匹配）。
+布尔表达式
+正则表达式：根据正则表达式是否匹配当前行来选择是否执行后面的代码块。
+比如： awk ‘/a/ {print $0} ‘ file1  打印 file1 中所有的包含 a 字符的全行。
+布尔表达式：布尔表达式即是一种判断表达式，当判断为真时执行后面的代码块。
+比如： awk ‘$==”a” {print$3}’ file1 打印 file1 文件中第一字段为 a 字符的该行的第三字段。 #$运算符用于引用字段，每行中tab键分离多个字段。
+
+模式后面接代码块， 模式是后面的代码块是否允许的一个先决条件。
+代码块：由一个或多个命令、函数、表达式组成，之间由换行符或分号隔开，并位于大括号内，主要部分是：
+变量或数组赋值
+输出命令
+内置函数
+控制流语句
+
+4.awk的运算符
+awk还提供了一系列内置的运算函数（如log、sqr、cos、sin等）和一些用于对字符串进行操作（运算）的函数（如length、substr等等）。
+算术运算符
+运算符描述+ -加，减* / &乘，除与求余+ - !一元加，减和逻辑非^ ***求幂++ --增加或减少，作为前缀或后缀例：
+awk 'BEGIN{a="b";print a++,++a;}'
+0 2
+注意：所有用作算术运算符进行操作，操作数自动转为数值，所有非数值都变为0
+赋值运算符
+运算符描述= += -= *= /= %= ^= **=赋值语句例：
+a+=5; 等价于：a=a+5; 其它同类
+
+逻辑运算符
+运算符描述||逻辑或&&逻辑与例：
+awk 'BEGIN{a=1;b=2;print (a>5 && b<=2),(a>5 || b<=2);}'
+0 1
+正则运算符
+运算符描述~ ~!匹配正则表达式和不匹配正则表达式例：
+awk 'BEGIN{a="100testa";if(a ~ /^100*/){print "ok";}}'
+ok
+关系运算符
+运算符描述< <= > >= != ==关系运算符例：
+awk 'BEGIN{a=11;if(a >= 9){print "ok";}}'
+ok
+注意：> < 可以作为字符串比较，也可以用作数值比较，关键看操作数如果是字符串就会转换为字符串比较。两个都为数字才转为数值比较。字符串比较：按照ASCII码顺序比较。
+其它运算符
+运算符描述$字段引用空格字符串连接符?:C条件表达式in数组中是否存在某键值例：
+awk 'BEGIN{a="b";print a=="b"?"ok":"err";}'
+ok
+awk 'BEGIN{a="b";arr[0]="b";arr[1]="c";print (a in arr);}'  #数组arr中是否有键名为a，即“b“
+0
+awk 'BEGIN{a="b";arr[0]="b";arr["b"]="c";print (a in arr);}'
+1
+5.正则表达式学习
+awk 的正则表达式写在 / / 之内： /正则表达式内容/
+常用符号（通配符） 及其功能：
+字符功能+指定如果一个或多个字符或扩展正则表达式的具体值（在 +（加号）前）在这个字符串中，则字符串匹配。命令行：
+awk '/smith+ern/' testfile
+将包含字符 smit，后跟一个或多个 h 字符，并以字符 ern 结束的字符串的任何记录打印至标准输出。此示例中的输出是：
+smithern, harry smithhern, anne
+?指定如果零个或一个字符或扩展正则表达式的具体值（在 ?（问号）之前）在字符串中，则字符串匹配。命令行：
+awk '/smith?/' testfile
+将包含字符 smit，后跟零个或一个 h 字符的实例的所有记录打印至标准输出。此示例中的输出是：
+smith, alan smithern, harry smithhern, anne smitters, alexis
+|指定如果以 |（垂直线）隔开的字符串的任何一个在字符串中，则字符串匹配。命令行：
+awk '/allen | alan /' testfile
+将包含字符串 allen 或 alan 的所有记录打印至标准输出。此示例中的输出是：
+smiley, allen smith, alan
+( )在正则表达式中将字符串组合在一起。命令行：
+awk '/a(ll)?(nn)?e/' testfile
+将具有字符串 ae 或 alle 或 anne 或 allnne 的所有记录打印至标准输出。此示例中的输出是：
+smiley, allen  smithhern, anne
+{m}指定如果正好有 m 个模式的具体值位于字符串中，则字符串匹配。命令行： awk '/l{2}/' testfile
+打印至标准输出
+smiley, allen
+{m,}指定如果至少 m 个模式的具体值在字符串中，则字符串匹配。命令行：
+awk '/t{2,}/' testfile
+打印至标准输出：
+smitters, alexis
+{m, n}指定如果 m 和 n 之间（包含的 m 和 n）个模式的具体值在字符串中（其中m <= n），则字符串匹配。命令行：
+awk '/er{1, 2}/' testfile
+打印至标准输出：
+smithern, harry smithern, anne smitters, alexis
+[String]指定正则表达式与方括号内 String 变量指定的任何字符匹配。命令行：
+awk '/sm[a-h]/' testfile
+将具有 sm 后跟以字母顺序从 a 到 h 排列的任何字符的所有记录打印至标准输出。此示例的输出是：
+smawley, andy
+[^ String]在 [ ]（方括号）和在指定字符串开头的 ^ (插入记号) 指明正则表达式与方括号内的任何字符不匹配。这样，命令行：
+awk '/sm[^a-h]/' testfile
+打印至标准输出：
+smiley, allen smith, alan smithern, harry smithhern, anne smitters, alexis
+~,!~表示指定变量与正则表达式匹配（代字号）或不匹配（代字号、感叹号）的条件语句。命令行：
+awk '$1 ~ /n/' testfile
+将第一个字段包含字符 n 的所有记录打印至标准输出。此示例中的输出是：
+smithern, harry smithhern, anne
+^指定字段或记录的开头。命令行：
+awk '$2 ~ /^h/' testfile
+将把字符 h 作为第二个字段的第一个字符的所有记录打印至标准输出。此示例中的输出是：
+smithern, harry
+$指定字段或记录的末尾。命令行：
+awk '$2 ~ /y$/' testfile
+将把字符 y 作为第二个字段的最后一个字符的所有记录打印至标准输出。此示例中的输出是：
+smawley, andy smithern, harry
+. （句号）表示除了在空白末尾的终端换行字符以外的任何一个字符。命令行：
+awk '/a..e/' testfile
+将具有以两个字符隔开的字符 a 和 e 的所有记录打印至标准输出。此示例中的输出是：
+smawley, andy smiley, allen smithhern, anne
+*（星号）表示零个或更多的任意字符。命令行：
+awk '/a.*e/' testfile
+将具有以零个或更多字符隔开的字符 a 和 e 的所有记录打印至标准输出。此示例中的输出是：
+smawley, andy smiley, allen smithhern, anne smitters, alexis
+\ (反斜杠)转义字符。当位于在扩展正则表达式中具有特殊含义的任何字符之前时，转义字符除去该字符的任何特殊含义。例如，命令行：
+/a\/\//
+将与模式 a // 匹配，因为反斜杠否定斜杠作为正则表达式定界符的通常含义。要将反斜杠本身指定为字符，则使用双反斜杠。有关反斜杠及其使用的更多信息，请参阅以下关于转义序列的内容。
+
+
+四、 其他部分补充
+1.管道符介绍命令格式： 命令 1| 命令 2
+作用：命令 1 的正确出书作为命令 2 的操作对象
+
+2.重定向符号介绍
+重导向就是使命令改变它所认定的标准输出。
+“>”可将结果输出到文件中，该文件原有内容会被删除。
+“>>”则将结果附加到文件中，原文件内容不会被删除。
+“<”可以改变标准输入。
+如：
+cat data1.txt>>data2.txt(将 data1.txt 文件的内容加在 data2.txt 文件的后面)
+
+3.awk 进阶学习内容
+流程控制语句 ：
+（1）if-else
+语法：if (condition){then-body} else{[else-body]}
+示例：
+awk -F: '{if($3>=1000)print $1,$3}' /etc/passwd
+awk -F: '{if($3>=1000){printf "Common user: %s\n",$1} else {printf "root or sysuser: %s\n",$1}}' /etc/passwd
+awk -F: '{if($NF=="/bin/bash")print $1}' /etc/passwd
+awk -F: '{if(NF>5) print $0}' /etc/fstab
+df -h | awk -F[%] '/^/dev/{print $1}' | awk {if($NF>=20) print $1}'
+awk -F: '{if($1=="root") print $1,"Admin";else print $1, "Common User"}' /etc/passwd
+awk -F: '{if($1=="root") printf "%-15s: %s\n",$1,"Admin";else printf "%-15s: %s\n",$1, "Common user"}' /etc/passwd
+awk -F: -v sum=0 '{if($3>=500) sum++}END{print sum}' /etc/passwd : 统计用户ID大于500的有多少行
+awk -F: -v OFS="\t" '{if($3<=999)printf "Sys user:\t%-15s ID is :%d\n", $1,$3;else{printf "Common user:\t%-15s ID is :%d\n",$1,$3}}' /etc/passwd :可以使用\t制表符控制 输出格式
+（2）while：用于循环字段的
+语法：while (condition){statement1;statment2;....}
+示例：
+awk '/^[[:space:]]*linux16/{print}' /boot/grub2/grub.cfg
+awk '/^[[:space:]]*linux16/{i=1;while(i<=NF){print $i,length($i);i++}}' /etc/grub2.cfg :对每个字段进行字符个数统计
+awk '/^[[:space:]]]*linux16/{i=1;while(i<=NF){if(length($i)<=7)print $i,length($i);i++}}' /etc/grub2.cfg
+awk -F: '{i=1;while(i<=3){print $i;i++}}' /etc/passwd:打印用户名、密码占位符、ID
+awk -F: '{i=1;while(i<=NF){if(length($i)>=4){print $i};i++}}' /etc/passwd : 字段大小于等于4的都显示
+（3）do-while
+语法：do {statement1,statement2,....} while (dondition)
+示例：
+awk -F: '{i=1;do{print $i;i++}while(i<=3)}' /etc/passwd :打印用户名、密码占位符、UID
+（4）for
+语法：for(variable assignment;condition;iteration process){ statement1,statement2,...}
+示例：
+awk '/^[[:space:]]*linux16/{for(i=1;i<=NF;i++) {print $i,length($i)}}' /etc/grub2.cfg
+awk -F: '{for(i=1;i<=3;i++)print $i}' /etc/passwd
+awk -F: '{for(i=1;i<=NF;i++) { if (length($i)>=4) {print $i}}}' /etc/passwd
+（5）for循环还可以用来遍历数组元素
+语法：for (i in array) {statement1,statement2,....}
+示例
+awk -F: '$NF!~/^$/{BASH[$NF]++}END{for(A in BASH){printf "%15s:%i\n",A,BASH[A]}}' /etc/passwd
+awk ‘{for(i=1;i<=NF;i++){count[$i]++}}END{for(i in count) {print i,count[i]}}’ /etc/fstab
+awk '/^UUID/{filesystem[$3]++}END{for (i in filesystem) {print i,filesystem[i]}}' /etc/fstab ：统计/etc/fstab中各文件系统的次数
+netstat -tan | awk '/^tcp>/{state[$NF]++}END{for(i in state) {print i,state[i]}}' ： 统计各连接状态的次数
+awk '{ip[$1]++} END {for (i in ip) {print i,ip[i]}}' /var/log/httpd/access_log : 统计访问日志中各IP的访问次数
+（6）case
+语法：switch (expression) { case VALUE or /REGEXP/: statement1, statement2,... default: statement1, ...}
+（7）break和continue
+break [n]
+continue : 进入下一个字段
+（8）next
+功能：提前结束本行文本的处理，并接着处理下一行
+示例：
+awk -F: '{if($3%2==0) next;print $1,$3}' /etc/passwd
+awk -F: ‘{if ($3%2!=0) next;print $1,$3}’ /etc/passwd
+数组利用： 一维数组、 二维数组（awk 中数组和字典的引用是相似的， 并不严格区分。）
+数值运算与 awk 结合。
+字符串进阶函数。
